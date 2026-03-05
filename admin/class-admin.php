@@ -5,17 +5,41 @@ class WC_PLR_Admin {
 
     public static function init(): void {
         add_action('admin_menu', [__CLASS__, 'add_menu']);
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_assets']);
         add_action('admin_post_wc_plr_save', [__CLASS__, 'save_settings']);
         add_action('admin_post_wc_plr_add_link', [__CLASS__, 'add_link']);
         add_action('admin_post_wc_plr_delete_link', [__CLASS__, 'delete_link']);
         add_action('admin_post_wc_plr_toggle_link', [__CLASS__, 'toggle_link']);
     }
 
+    public static function enqueue_assets($hook): void {
+        if ($hook !== 'woocommerce_page_wc-plr-settings') return;
+        wp_enqueue_media();
+        wp_add_inline_script('jquery', "
+jQuery(function($){
+  $('#wc_plr_rdr_pick_bg').on('click', function(){
+    var i = $('#wc_plr_rdr_bg_image');
+    var f = wp.media({ library: { type: 'image' }, multiple: false });
+    f.on('select', function(){ var a = f.state().get('selection').first(); if (a) i.val(a.get('url')); });
+    f.open();
+  });
+  $('#wc_plr_rdr_clear_bg').on('click', function(){ $('#wc_plr_rdr_bg_image').val(''); });
+  $('#wc_plr_rdr_pick_card_bg').on('click', function(){
+    var i = $('#wc_plr_rdr_card_bg_image');
+    var f = wp.media({ library: { type: 'image' }, multiple: false });
+    f.on('select', function(){ var a = f.state().get('selection').first(); if (a) i.val(a.get('url')); });
+    f.open();
+  });
+  $('#wc_plr_rdr_clear_card_bg').on('click', function(){ $('#wc_plr_rdr_card_bg_image').val(''); });
+});
+");
+    }
+
     public static function add_menu(): void {
         add_submenu_page(
             'woocommerce',
             'Payment Link Rotator',
-            'Link Rotator by Degrees',
+            '🔄 Link Rotator',
             'manage_woocommerce',
             'wc-plr-settings',
             [__CLASS__, 'render_page']
@@ -30,10 +54,23 @@ class WC_PLR_Admin {
         $rotation = get_option('wc_plr_rotation', 'random');
         $mode     = get_option('wc_plr_mode', 'redirect');
         $show     = get_option('wc_plr_show_loading', '1');
-        $delay    = (int)get_option('wc_plr_loading_delay', 2);
+        $delay    = (int)get_option('wc_plr_loading_delay', 8);
         $logging  = get_option('wc_plr_logging', '1');
         $title    = get_option('wc_plr_title', 'Оплата онлайн');
         $desc     = get_option('wc_plr_description', '');
+        $rdr_title     = get_option('wc_plr_rdr_title', 'Processing Payment');
+        $rdr_subtitle  = get_option('wc_plr_rdr_subtitle', 'Copy your order number and paste it on the payment page if needed. Redirect in %s sec.');
+        $rdr_order_lbl = get_option('wc_plr_rdr_order_label', 'Order number');
+        $rdr_btn       = get_option('wc_plr_rdr_btn', 'Copy order number');
+        $rdr_copied    = get_option('wc_plr_rdr_copied', 'Copied ✓');
+        $rdr_hint      = get_option('wc_plr_rdr_hint', 'Redirect not starting?');
+        $rdr_text_clr  = get_option('wc_plr_rdr_text_color', '#1a1a2e');
+        $rdr_bg_clr    = get_option('wc_plr_rdr_bg_color', '#f7f7f8');
+        $rdr_card_bg      = get_option('wc_plr_rdr_card_bg', '#ffffff');
+        $rdr_card_text    = get_option('wc_plr_rdr_card_text_color', '');
+        $rdr_card_bg_img  = get_option('wc_plr_rdr_card_bg_image', '');
+        $rdr_accent    = get_option('wc_plr_rdr_accent', '#5b4cde');
+        $rdr_bg_img    = get_option('wc_plr_rdr_bg_image', '');
         $stats    = WC_PLR_Logger::get_stats();
         $recent   = WC_PLR_Logger::get_recent(20);
 
@@ -46,7 +83,7 @@ class WC_PLR_Admin {
         }
         ?>
 <div class="wrap" style="max-width:900px">
-<h1> Link Rotator</h1>
+<h1>🔄 WC Payment Link Rotator</h1>
 
 <!-- TABS -->
 <h2 class="nav-tab-wrapper">
@@ -82,7 +119,7 @@ class WC_PLR_Admin {
       <td>
         От <input type="number" name="min_amount" value="0" min="0" step="0.01" style="width:100px">
         до <input type="number" name="max_amount" value="0" min="0" step="0.01" style="width:100px">
-        <span class="description">0 = без ограничений</span>
+        <span class="description">0 = без ограничений. Для случайного выбора среди всех ссылок оставьте 0 у всех.</span>
       </td>
     </tr>
   </table>
@@ -197,7 +234,7 @@ class WC_PLR_Admin {
     <tr>
       <th>Задержка перед редиректом</th>
       <td>
-        <input type="number" name="wc_plr_loading_delay" value="<?= $delay ?>" min="0" max="10" style="width:70px"> сек
+        <input type="number" name="wc_plr_loading_delay" value="<?= $delay ?>" min="0" max="60" style="width:70px"> sec
         <p class="description">0 = мгновенный редирект (только при включённой странице выше)</p>
       </td>
     </tr>
@@ -206,6 +243,75 @@ class WC_PLR_Admin {
       <td>
         <label><input type="checkbox" name="wc_plr_logging" value="1" <?= checked($logging,'1',false) ?>>
         Логировать переходы по ссылкам</label>
+      </td>
+    </tr>
+  </table>
+
+  <h3 style="margin-top:24px">Оформление окна редиректа</h3>
+  <p class="description">Текст, цвета и фон страницы с номером заказа и кнопкой «Копировать».</p>
+  <table class="form-table">
+    <tr>
+      <th><label>Заголовок</label></th>
+      <td><input type="text" name="wc_plr_rdr_title" value="<?= esc_attr($rdr_title) ?>" class="regular-text"></td>
+    </tr>
+    <tr>
+      <th><label>Подзаголовок</label></th>
+      <td><input type="text" name="wc_plr_rdr_subtitle" value="<?= esc_attr($rdr_subtitle) ?>" class="large-text">
+      <p class="description">Вместо числа секунд подставится <code>%s</code></p></td>
+    </tr>
+    <tr>
+      <th><label>Подпись «Номер заказа»</label></th>
+      <td><input type="text" name="wc_plr_rdr_order_label" value="<?= esc_attr($rdr_order_lbl) ?>" class="regular-text"></td>
+    </tr>
+    <tr>
+      <th><label>Текст кнопки</label></th>
+      <td><input type="text" name="wc_plr_rdr_btn" value="<?= esc_attr($rdr_btn) ?>" class="regular-text"></td>
+    </tr>
+    <tr>
+      <th><label>Текст «Скопировано»</label></th>
+      <td><input type="text" name="wc_plr_rdr_copied" value="<?= esc_attr($rdr_copied) ?>" class="regular-text"></td>
+    </tr>
+    <tr>
+      <th><label>Подсказка (если не редиректит)</label></th>
+      <td><input type="text" name="wc_plr_rdr_hint" value="<?= esc_attr($rdr_hint) ?>" class="large-text"></td>
+    </tr>
+    <tr>
+      <th><label>Цвет текста</label></th>
+      <td><input type="text" name="wc_plr_rdr_text_color" value="<?= esc_attr($rdr_text_clr) ?>" class="small-text" placeholder="#1a1a2e"></td>
+    </tr>
+    <tr>
+      <th><label>Цвет фона страницы</label></th>
+      <td><input type="text" name="wc_plr_rdr_bg_color" value="<?= esc_attr($rdr_bg_clr) ?>" class="small-text" placeholder="#f7f7f8"></td>
+    </tr>
+    <tr>
+      <th><label>Цвет фона карточки</label></th>
+      <td><input type="text" name="wc_plr_rdr_card_bg" value="<?= esc_attr($rdr_card_bg) ?>" class="small-text" placeholder="#ffffff">
+      <p class="description">Фон самого модального окна (номер заказа, кнопка)</p></td>
+    </tr>
+    <tr>
+      <th><label>Цвет текста в карточке</label></th>
+      <td><input type="text" name="wc_plr_rdr_card_text_color" value="<?= esc_attr($rdr_card_text) ?>" class="small-text" placeholder="#1a1a2e">
+      <p class="description">Если пусто — используется цвет текста страницы</p></td>
+    </tr>
+    <tr>
+      <th><label>Фон карточки (изображение)</label></th>
+      <td>
+        <input type="url" name="wc_plr_rdr_card_bg_image" id="wc_plr_rdr_card_bg_image" value="<?= esc_attr($rdr_card_bg_img) ?>" class="large-text">
+        <button type="button" class="button" id="wc_plr_rdr_pick_card_bg">Выбрать</button>
+        <button type="button" class="button" id="wc_plr_rdr_clear_card_bg">Удалить</button>
+      </td>
+    </tr>
+    <tr>
+      <th><label>Акцент (кнопка, ссылки, номер)</label></th>
+      <td><input type="text" name="wc_plr_rdr_accent" value="<?= esc_attr($rdr_accent) ?>" class="small-text" placeholder="#5b4cde"></td>
+    </tr>
+    <tr>
+      <th><label>Фон страницы (изображение)</label></th>
+      <td>
+        <input type="url" name="wc_plr_rdr_bg_image" id="wc_plr_rdr_bg_image" value="<?= esc_attr($rdr_bg_img) ?>" class="large-text">
+        <button type="button" class="button" id="wc_plr_rdr_pick_bg">Выбрать изображение</button>
+        <button type="button" class="button" id="wc_plr_rdr_clear_bg">Удалить</button>
+        <p class="description">URL картинки. Растягивается на весь фон.</p>
       </td>
     </tr>
   </table>
@@ -283,8 +389,21 @@ function showTab(id, el) {
         update_option('wc_plr_rotation',      sanitize_text_field($_POST['wc_plr_rotation'] ?? 'random'));
         update_option('wc_plr_mode',          sanitize_text_field($_POST['wc_plr_mode'] ?? 'redirect'));
         update_option('wc_plr_show_loading',  isset($_POST['wc_plr_show_loading']) ? '1' : '0');
-        update_option('wc_plr_loading_delay', (int)($_POST['wc_plr_loading_delay'] ?? 2));
+        update_option('wc_plr_loading_delay', max(0, min(60, (int)($_POST['wc_plr_loading_delay'] ?? 8))));
         update_option('wc_plr_logging',       isset($_POST['wc_plr_logging']) ? '1' : '0');
+        update_option('wc_plr_rdr_title',     sanitize_text_field($_POST['wc_plr_rdr_title'] ?? ''));
+        update_option('wc_plr_rdr_subtitle',  sanitize_text_field($_POST['wc_plr_rdr_subtitle'] ?? ''));
+        update_option('wc_plr_rdr_order_label', sanitize_text_field($_POST['wc_plr_rdr_order_label'] ?? ''));
+        update_option('wc_plr_rdr_btn',       sanitize_text_field($_POST['wc_plr_rdr_btn'] ?? ''));
+        update_option('wc_plr_rdr_copied',    sanitize_text_field($_POST['wc_plr_rdr_copied'] ?? ''));
+        update_option('wc_plr_rdr_hint',      sanitize_text_field($_POST['wc_plr_rdr_hint'] ?? ''));
+        update_option('wc_plr_rdr_text_color', sanitize_text_field($_POST['wc_plr_rdr_text_color'] ?? '#1a1a2e'));
+        update_option('wc_plr_rdr_bg_color',   sanitize_text_field($_POST['wc_plr_rdr_bg_color'] ?? '#f7f7f8'));
+        update_option('wc_plr_rdr_card_bg',   sanitize_text_field($_POST['wc_plr_rdr_card_bg'] ?? '#ffffff'));
+        update_option('wc_plr_rdr_card_text_color', sanitize_text_field($_POST['wc_plr_rdr_card_text_color'] ?? ''));
+        update_option('wc_plr_rdr_card_bg_image',    esc_url_raw($_POST['wc_plr_rdr_card_bg_image'] ?? ''));
+        update_option('wc_plr_rdr_accent',    sanitize_text_field($_POST['wc_plr_rdr_accent'] ?? '#5b4cde'));
+        update_option('wc_plr_rdr_bg_image',  esc_url_raw($_POST['wc_plr_rdr_bg_image'] ?? ''));
 
         wp_redirect(admin_url('admin.php?page=wc-plr-settings&saved=1'));
         exit;

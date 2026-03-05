@@ -1,24 +1,14 @@
 <?php
 /**
- * Plugin Name: Payment Link Rotator by Degrees
+ * Plugin Name: WC Payment Link Rotator
  * Description: Ротация внешних платёжных ссылок с прокладкой для скрытия реферера
- * Version: 1.1.4
+ * Version: 1.0.0
  * Text Domain: wc-plr
  */
 defined('ABSPATH') || exit;
 
 define('WC_PLR_PATH', plugin_dir_path(__FILE__));
 define('WC_PLR_URL',  plugin_dir_url(__FILE__));
-define('WC_PLR_VERSION', '1.1.4');
-
-/**
- * Репозиторий для автообновления из GitHub (релизы).
- * По умолчанию пусто — как в первой версии, без проверки обновлений.
- * Чтобы включить: в wp-config.php добавьте define('WC_PLR_GITHUB_REPO', 'owner/repo');
- */
-if (!defined('WC_PLR_GITHUB_REPO')) {
-    define('WC_PLR_GITHUB_REPO', '');
-}
 
 add_action('plugins_loaded', function() {
     if (!class_exists('WooCommerce')) {
@@ -42,19 +32,6 @@ add_action('plugins_loaded', function() {
     });
 });
 
-// Автообновление из GitHub (релизы). Загружаем только в админке, чтобы не влиять
-// на checkout/редирект на боевых серверах (на фронте апдейтер не нужен).
-if (WC_PLR_GITHUB_REPO !== '' && is_admin()) {
-    require_once WC_PLR_PATH . 'includes/class-updater.php';
-    new WC_PLR_Updater(
-        WC_PLR_GITHUB_REPO,
-        WC_PLR_VERSION,
-        plugin_basename(__FILE__),
-        __FILE__,
-        defined('WC_PLR_GITHUB_TOKEN') ? WC_PLR_GITHUB_TOKEN : null
-    );
-}
-
 register_activation_hook(__FILE__, function() {
     $defaults = [
         'wc_plr_links'         => [],
@@ -62,7 +39,7 @@ register_activation_hook(__FILE__, function() {
         'wc_plr_rr_index'      => 0,
         'wc_plr_mode'          => 'redirect',
         'wc_plr_show_loading'  => '1',
-        'wc_plr_loading_delay' => 2,
+        'wc_plr_loading_delay' => 8,
         'wc_plr_logging'       => '1',
         'wc_plr_title'         => 'Оплата онлайн',
         'wc_plr_description'   => 'Безопасная оплата через внешний платёжный сервис.',
@@ -72,12 +49,4 @@ register_activation_hook(__FILE__, function() {
     }
     require_once plugin_dir_path(__FILE__) . 'includes/class-logger.php';
     WC_PLR_Logger::create_table();
-    // Сброс правил перезаписи, чтобы эндпоинт прокси /wc-plr-go/ работал сразу после активации
-    require_once plugin_dir_path(__FILE__) . 'includes/class-proxy.php';
-    WC_PLR_Proxy::add_endpoint();
-    flush_rewrite_rules();
-});
-
-register_deactivation_hook(__FILE__, function() {
-    flush_rewrite_rules();
 });

@@ -29,7 +29,10 @@ class WC_PLR_Rotator {
     }
 
     private static function random(array $links): string {
-        return $links[array_rand($links)]['url'];
+        $idx = function_exists('random_int')
+            ? random_int(0, count($links) - 1)
+            : array_rand($links);
+        return $links[$idx]['url'];
     }
 
     private static function round_robin(array $links): string {

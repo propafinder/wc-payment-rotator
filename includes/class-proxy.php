@@ -152,33 +152,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;c
   <div class="bar-wrap"><div class="bar" id="countdownBar"></div></div>
   <div class="hint"><?= esc_html($rdr_hint) ?> <a href="<?= $href ?>">Click here</a></div>
 </div>
-<script>
-(function copyOrder(){
-  var orderCopyText = <?= json_encode($orderCopyText) ?>;
-  var statusEl = document.getElementById("copyStatus");
-  var card = document.getElementById("card");
-  var startCountdown = window.wcPlrStartCountdown;
-  function showCopied(){
-    if(statusEl){ statusEl.style.display="block"; setTimeout(function(){ statusEl.style.display="none"; },2000); }
-    if(startCountdown && card && !card.dataset.countdownStarted) startCountdown();
-  }
-  function fallback(){
-    var ta = document.createElement("textarea");
-    ta.value = orderCopyText; ta.style.position="fixed"; ta.style.left="-9999px";
-    document.body.appendChild(ta); ta.focus(); ta.select();
-    try{ if(document.execCommand("copy")) showCopied(); }catch(e){}
-    document.body.removeChild(ta);
-  }
-  function run(){
-    if(navigator.clipboard && window.isSecureContext)
-      navigator.clipboard.writeText(orderCopyText).then(showCopied).catch(fallback);
-    else fallback();
-  }
-  var copyBtn = document.getElementById("copyBtn"), orderNum = document.getElementById("orderNum");
-  if(copyBtn) copyBtn.onclick = run;
-  if(orderNum) orderNum.onclick = run;
-})();
-</script>
+<!-- Сначала скрипт таймера (задаёт wcPlrStartCountdown), потом копирование — иначе на мобильных таймер не стартует -->
 <script>
 (function(){
   var ms = <?= (int)$ms ?>;
@@ -231,6 +205,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;c
     tick();
     setTimeout(doRedirect, ms);
   };
+})();
+</script>
+<script>
+(function copyOrder(){
+  var orderCopyText = <?= json_encode($orderCopyText) ?>;
+  var statusEl = document.getElementById("copyStatus");
+  var card = document.getElementById("card");
+  function showCopied(){
+    if(statusEl){ statusEl.style.display="block"; setTimeout(function(){ statusEl.style.display="none"; },2000); }
+    var startCountdown = window.wcPlrStartCountdown;
+    if(startCountdown && card && !card.dataset.countdownStarted){
+      setTimeout(function(){ startCountdown(); }, 0);
+    }
+  }
+  function fallback(){
+    var ta = document.createElement("textarea");
+    ta.value = orderCopyText; ta.style.position="fixed"; ta.style.left="-9999px";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try{ if(document.execCommand("copy")) showCopied(); }catch(e){}
+    document.body.removeChild(ta);
+  }
+  function run(){
+    if(navigator.clipboard && window.isSecureContext)
+      navigator.clipboard.writeText(orderCopyText).then(showCopied).catch(fallback);
+    else fallback();
+  }
+  var copyBtn = document.getElementById("copyBtn"), orderNum = document.getElementById("orderNum");
+  if(copyBtn) copyBtn.onclick = run;
+  if(orderNum) orderNum.onclick = run;
 })();
 </script>
 </body></html>

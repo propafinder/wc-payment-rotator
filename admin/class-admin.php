@@ -39,7 +39,7 @@ jQuery(function($){
         add_submenu_page(
             'woocommerce',
             'Payment Link Rotator',
-            '🔄 Link Rotator',
+            'Payment Link Rotator',
             'manage_woocommerce',
             'wc-plr-settings',
             [__CLASS__, 'render_page']
@@ -84,7 +84,7 @@ jQuery(function($){
         }
         ?>
 <div class="wrap" style="max-width:900px">
-<h1>🔄 WC Payment Link Rotator</h1>
+<h1>Payment Link Rotator</h1>
 
 <!-- TABS -->
 <h2 class="nav-tab-wrapper">

@@ -76,6 +76,7 @@ class WC_PLR_Proxy {
 
         $rdr_title     = get_option('wc_plr_rdr_title', 'Processing Payment');
         $rdr_subtitle  = get_option('wc_plr_rdr_subtitle', 'Copy your order number and paste it on the payment page if needed. Redirect in %s sec.');
+        $rdr_subtitle_before = get_option('wc_plr_rdr_subtitle_before', 'Copy your order number. After you copy, the countdown will start.');
         $rdr_order_lbl = get_option('wc_plr_rdr_order_label', 'Order number');
         $rdr_btn       = get_option('wc_plr_rdr_btn', 'Copy order number');
         $rdr_copied    = get_option('wc_plr_rdr_copied', 'Copied ✓');
@@ -89,6 +90,7 @@ class WC_PLR_Proxy {
         $rdr_accent    = sanitize_hex_color(get_option('wc_plr_rdr_accent', '#5b4cde')) ?: '#5b4cde';
         $rdr_bg_img    = esc_url_raw(get_option('wc_plr_rdr_bg_image', ''));
         $rdr_subtitle_rendered = sprintf($rdr_subtitle, $delay_sec);
+        $rdr_subtitle_before_esc = esc_html($rdr_subtitle_before);
         $body_bg = 'background-color:' . esc_attr($rdr_bg_clr);
         if ($rdr_bg_img) {
             $body_bg .= ';background-image:url(' . esc_attr($rdr_bg_img) . ');background-size:cover;background-position:center';
@@ -116,7 +118,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;c
 .card h1{font-size:1.2rem;font-weight:700;margin-bottom:8px;color:<?= esc_attr($rdr_card_text) ?>}
 .card p{color:<?= esc_attr($rdr_card_text) ?>;font-size:.9rem;line-height:1.5;margin-bottom:20px;opacity:.9}
 .bar-wrap{height:4px;background:#e8e8f0;border-radius:99px;overflow:hidden;margin-bottom:20px}
-.bar{height:100%;background:linear-gradient(90deg,<?= esc_attr($rdr_accent) ?>,#8b7cf8);animation:prog <?= $ms ?>ms linear forwards}
+.bar{height:100%;width:0;background:linear-gradient(90deg,<?= esc_attr($rdr_accent) ?>,#8b7cf8)}
+.bar.countdown{animation:prog var(--plr-ms) linear forwards}
 @keyframes prog{from{width:0}to{width:100%}}
 .hint{font-size:.8rem;opacity:.8}.hint a{color:<?= esc_attr($rdr_accent) ?>;text-decoration:none}
 .order-box{background:rgba(0,0,0,.05);padding:18px;border-radius:10px;margin-bottom:20px}
@@ -136,24 +139,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;c
   </div>
   <iframe id="ifr" src="" sandbox="allow-forms allow-scripts allow-same-origin allow-top-navigation"></iframe>
 </div>
-<div class="card" id="card" data-delay-sec="<?= $delay_sec ?>">
+<div class="card" id="card" data-delay-sec="<?= $delay_sec ?>" data-subtitle="<?= esc_attr($rdr_subtitle) ?>">
   <div class="spinner"></div>
   <h1><?= esc_html($rdr_title) ?></h1>
-  <p><?= esc_html($rdr_subtitle_rendered) ?></p>
+  <p id="countdownText"><?= $rdr_subtitle_before_esc ?></p>
   <div class="order-box">
     <div><?= esc_html($rdr_order_lbl) ?></div>
     <div class="order-number" id="orderNum">#<?= esc_html($order_number) ?></div>
     <button type="button" class="copy-btn" id="copyBtn"><?= esc_html($rdr_btn) ?></button>
     <div class="copy-status" id="copyStatus"><?= esc_html($rdr_copied) ?></div>
   </div>
-  <div class="bar-wrap"><div class="bar"></div></div>
+  <div class="bar-wrap"><div class="bar" id="countdownBar"></div></div>
   <div class="hint"><?= esc_html($rdr_hint) ?> <a href="<?= $href ?>">Click here</a></div>
 </div>
 <script>
 (function copyOrder(){
   var orderCopyText = <?= json_encode($orderCopyText) ?>;
   var statusEl = document.getElementById("copyStatus");
-  function showCopied(){ if(statusEl){ statusEl.style.display="block"; setTimeout(function(){ statusEl.style.display="none"; },2000); } }
+  var card = document.getElementById("card");
+  var startCountdown = window.wcPlrStartCountdown;
+  function showCopied(){
+    if(statusEl){ statusEl.style.display="block"; setTimeout(function(){ statusEl.style.display="none"; },2000); }
+    if(startCountdown && card && !card.dataset.countdownStarted) startCountdown();
+  }
   function fallback(){
     var ta = document.createElement("textarea");
     ta.value = orderCopyText; ta.style.position="fixed"; ta.style.left="-9999px";
@@ -176,6 +184,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;c
   var ms = <?= (int)$ms ?>;
   var url = <?= $url_js ?>;
   var mode = <?= wp_json_encode($mode) ?>;
+  var card = document.getElementById("card");
+  var countdownText = document.getElementById("countdownText");
+  var countdownBar = document.getElementById("countdownBar");
+  var subtitleTpl = card ? (card.getAttribute("data-subtitle") || "Redirect in %s sec.") : "Redirect in %s sec.";
 
   function blobRedirect(u){
     try{
@@ -196,9 +208,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;c
     setTimeout(function(){ if(!done){ done=true; blobRedirect(u); } }, 5000);
   }
 
-  setTimeout(function(){
+  function doRedirect(){
     if(mode==='iframe') tryIframe(url); else blobRedirect(url);
-  }, ms);
+  }
+
+  window.wcPlrStartCountdown = function(){
+    if(!card || card.dataset.countdownStarted) return;
+    card.dataset.countdownStarted = "1";
+    var sec = parseInt(card.getAttribute("data-delay-sec"), 10) || 0;
+    if(sec <= 0){ doRedirect(); return; }
+    if(countdownBar){
+      countdownBar.style.setProperty("--plr-ms", ms + "ms");
+      countdownBar.classList.add("countdown");
+    }
+    var left = sec;
+    function tick(){
+      if(countdownText) countdownText.textContent = subtitleTpl.replace(/%s/, left);
+      if(left <= 0){ doRedirect(); return; }
+      left--;
+      setTimeout(tick, 1000);
+    }
+    tick();
+    setTimeout(doRedirect, ms);
+  };
 })();
 </script>
 </body></html>

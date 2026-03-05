@@ -60,6 +60,7 @@ jQuery(function($){
         $desc     = get_option('wc_plr_description', '');
         $rdr_title     = get_option('wc_plr_rdr_title', 'Processing Payment');
         $rdr_subtitle  = get_option('wc_plr_rdr_subtitle', 'Copy your order number and paste it on the payment page if needed. Redirect in %s sec.');
+        $rdr_subtitle_before = get_option('wc_plr_rdr_subtitle_before', 'Copy your order number. After you copy, the countdown will start.');
         $rdr_order_lbl = get_option('wc_plr_rdr_order_label', 'Order number');
         $rdr_btn       = get_option('wc_plr_rdr_btn', 'Copy order number');
         $rdr_copied    = get_option('wc_plr_rdr_copied', 'Copied ✓');
@@ -255,9 +256,14 @@ jQuery(function($){
       <td><input type="text" name="wc_plr_rdr_title" value="<?= esc_attr($rdr_title) ?>" class="regular-text"></td>
     </tr>
     <tr>
-      <th><label>Подзаголовок</label></th>
+      <th><label>Подзаголовок до копирования</label></th>
+      <td><input type="text" name="wc_plr_rdr_subtitle_before" value="<?= esc_attr($rdr_subtitle_before) ?>" class="large-text">
+      <p class="description">Показывается до нажатия «Копировать». После копирования начнётся обратный отсчёт.</p></td>
+    </tr>
+    <tr>
+      <th><label>Подзаголовок при отсчёте</label></th>
       <td><input type="text" name="wc_plr_rdr_subtitle" value="<?= esc_attr($rdr_subtitle) ?>" class="large-text">
-      <p class="description">Вместо числа секунд подставится <code>%s</code></p></td>
+      <p class="description">Во время обратного отсчёта. Вместо числа секунд подставится <code>%s</code></p></td>
     </tr>
     <tr>
       <th><label>Подпись «Номер заказа»</label></th>
@@ -393,6 +399,7 @@ function showTab(id, el) {
         update_option('wc_plr_logging',       isset($_POST['wc_plr_logging']) ? '1' : '0');
         update_option('wc_plr_rdr_title',     sanitize_text_field($_POST['wc_plr_rdr_title'] ?? ''));
         update_option('wc_plr_rdr_subtitle',  sanitize_text_field($_POST['wc_plr_rdr_subtitle'] ?? ''));
+        update_option('wc_plr_rdr_subtitle_before', sanitize_text_field($_POST['wc_plr_rdr_subtitle_before'] ?? ''));
         update_option('wc_plr_rdr_order_label', sanitize_text_field($_POST['wc_plr_rdr_order_label'] ?? ''));
         update_option('wc_plr_rdr_btn',       sanitize_text_field($_POST['wc_plr_rdr_btn'] ?? ''));
         update_option('wc_plr_rdr_copied',    sanitize_text_field($_POST['wc_plr_rdr_copied'] ?? ''));

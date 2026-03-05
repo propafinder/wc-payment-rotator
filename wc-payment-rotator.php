@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WC Payment Link Rotator
  * Description: Rotation of external payment links with a proxy page to hide the referrer.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Degrees Team
  * Author URI: https://github.com/propafinder/wc-payment-rotator
  * Text Domain: wc-plr

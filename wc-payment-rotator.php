@@ -4,6 +4,7 @@
  * Description: Ротация внешних платёжных ссылок с прокладкой для скрытия реферера
  * Version: 1.0.0
  * Text Domain: wc-plr
+ * Update URI: https://github.com/propafinder/wc-payment-rotator/
  */
 defined('ABSPATH') || exit;
 
@@ -21,8 +22,10 @@ add_action('plugins_loaded', function() {
     require WC_PLR_PATH . 'includes/class-proxy.php';
     require WC_PLR_PATH . 'includes/class-logger.php';
     require WC_PLR_PATH . 'includes/class-gateway.php';
+    require WC_PLR_PATH . 'includes/class-updater.php';
     require WC_PLR_PATH . 'admin/class-admin.php';
 
+    WC_PLR_Updater::init();
     WC_PLR_Proxy::init();
     WC_PLR_Admin::init();
 

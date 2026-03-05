@@ -118,6 +118,8 @@ class WC_PLR_Gateway extends WC_Payment_Gateway {
             ? $dest
             : $proxy_url;
 
+        // Если на боевом сайте кидает на wp-login.php — причина не в плагине: сессия не видна
+        // при запросе (куки, HTTPS, домен в Настройках, кэш, плагины безопасности).
         return [
             'result'   => 'success',
             'redirect' => $redirect,

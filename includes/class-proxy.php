@@ -3,18 +3,25 @@ defined('ABSPATH') || exit;
 
 class WC_PLR_Proxy {
 
-    const EP  = 'wc-plr-go';
-    const TR  = 'wc_plr_token_';
-    const TTL = 1800;
+    const EP   = 'wc-plr-go';
+    const EP_Q = 'wc_plr_go'; // query-var для URL без rewrite (работает везде: nginx, без flush permalinks)
+    const TR   = 'wc_plr_token_';
+    const TTL  = 1800;
 
     public static function init(): void {
         add_action('init',              [__CLASS__, 'add_endpoint']);
+        add_filter('query_vars',        [__CLASS__, 'add_query_var']);
         add_action('template_redirect', [__CLASS__, 'handle']);
     }
 
     public static function add_endpoint(): void {
         add_rewrite_rule('^' . self::EP . '/?$', 'index.php?' . self::EP . '=1', 'top');
         add_rewrite_tag('%' . self::EP . '%', '([^&]+)');
+    }
+
+    public static function add_query_var(array $vars): array {
+        $vars[] = self::EP_Q;
+        return $vars;
     }
 
     public static function make_url(string $dest, int $order_id): string {
@@ -26,14 +33,16 @@ class WC_PLR_Proxy {
             'order_id' => $order_id
         ], self::TTL);
 
-        // Всегда используем фронтовой URL (home_url), чтобы редирект не уходил в wp-admin
-        $url = home_url('/' . self::EP . '/?token=' . $token);
+        // URL через index.php?wc_plr_go=1 не зависит от rewrite/nginx — работает на любом хостинге
+        $url = home_url('/index.php?' . self::EP_Q . '=1&token=' . $token);
         return $url;
     }
 
     public static function handle(): void {
 
-        if (!get_query_var(self::EP)) return;
+        $via_rewrite = get_query_var(self::EP);
+        $via_query   = get_query_var(self::EP_Q);
+        if (!$via_rewrite && !$via_query) return;
 
         $token = sanitize_text_field($_GET['token'] ?? '');
 

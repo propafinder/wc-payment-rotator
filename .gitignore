@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Composer (если позже добавите)
+/vendor/
+composer.lock
+
+# Сборка и артефакты
+*.zip
+/build/
+
+# Логи и временные файлы
+*.log
+*.tmp

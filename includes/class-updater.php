@@ -10,11 +10,12 @@ defined('ABSPATH') || exit;
 
 class WC_PLR_Updater {
 
-	const GITHUB_API_URL = 'https://api.github.com/repos/propafinder/wc-payment-rotator/releases/latest';
-	const PLUGIN_FILE    = 'wc-payment-rotator/wc-payment-rotator.php';
-	const PLUGIN_SLUG    = 'wc-payment-rotator';
-	const CACHE_KEY      = 'wc_plr_github_release';
-	const CACHE_TTL      = 43200; // 12 часов
+	const GITHUB_API_URL   = 'https://api.github.com/repos/propafinder/wc-payment-rotator/releases/latest';
+	const PLUGIN_FILE      = 'wc-payment-rotator/wc-payment-rotator.php';
+	const PLUGIN_SLUG      = 'wc-payment-rotator';
+	const UPDATE_URI       = 'https://github.com/propafinder/wc-payment-rotator/';
+	const CACHE_KEY        = 'wc_plr_github_release';
+	const CACHE_TTL        = 43200; // 12 часов
 
 	/**
 	 * Регистрирует фильтры обновлений (только для нашего плагина).
@@ -23,6 +24,8 @@ class WC_PLR_Updater {
 		// Хост из Update URI: https://github.com/... → github.com
 		add_filter('update_plugins_github.com', [ __CLASS__, 'filter_update_plugins' ], 10, 4);
 		add_filter('plugins_api', [ __CLASS__, 'filter_plugins_api' ], 10, 3);
+		// Подмешиваем обновление в кэш, если хук по hostname не сработал (разные окружения)
+		add_filter('pre_set_site_transient_update_plugins', [ __CLASS__, 'inject_into_update_plugins' ], 10, 2);
 	}
 
 	/**
@@ -71,7 +74,7 @@ class WC_PLR_Updater {
 	 * @return array|false
 	 */
 	public static function filter_update_plugins($update, $plugin_data, $plugin_file, $locales) {
-		if ($plugin_file !== self::PLUGIN_FILE) {
+		if (! self::is_our_plugin($plugin_file, $plugin_data)) {
 			return $update;
 		}
 		if (! empty($update)) {
@@ -94,8 +97,93 @@ class WC_PLR_Updater {
 			return $update;
 		}
 
-		return [
+		return self::build_update_object($new_version, $release, $package, $plugin_file);
+	}
+
+	/**
+	 * Подмешивает наше обновление в transient update_plugins (fallback, если хук по hostname не вызывается).
+	 *
+	 * @param object $value    Значение transient update_plugins.
+	 * @param string $transient Имя transient.
+	 * @return object
+	 */
+	public static function inject_into_update_plugins($value, $transient) {
+		if ($transient !== 'update_plugins' || ! is_object($value) || ! isset($value->response)) {
+			return $value;
+		}
+		$release = self::get_latest_release();
+		if (! $release) {
+			return $value;
+		}
+		$new_version = self::normalize_version($release['tag_name']);
+		$package     = self::get_release_package_url($release);
+		if (! $package) {
+			return $value;
+		}
+		// Найти наш плагин в get_plugins() по имени или Update URI
+		$plugin_file = self::get_our_plugin_file();
+		if (! $plugin_file) {
+			return $value;
+		}
+		$plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin_file, false, false);
+		$current     = isset($plugin_data['Version']) ? $plugin_data['Version'] : '0';
+		if (! version_compare($current, $new_version, '<')) {
+			return $value;
+		}
+		$value->response[ $plugin_file ] = self::build_update_object($new_version, $release, $package, $plugin_file);
+		return $value;
+	}
+
+	/**
+	 * Проверяет, что это наш плагин по пути или по заголовкам.
+	 */
+	private static function is_our_plugin($plugin_file, $plugin_data) {
+		$normalized = is_string($plugin_file) ? str_replace('\\', '/', $plugin_file) : '';
+		if ($normalized === self::PLUGIN_FILE) {
+			return true;
+		}
+		if (! empty($plugin_data['Name']) && $plugin_data['Name'] === 'WC Payment Link Rotator') {
+			return true;
+		}
+		$uri = isset($plugin_data['Update URI']) ? $plugin_data['Update URI'] : '';
+		return (strpos($uri, 'github.com/propafinder/wc-payment-rotator') !== false);
+	}
+
+	/**
+	 * Возвращает путь к нашему плагину (папка/файл.php) из get_plugins().
+	 *
+	 * @return string|null
+	 */
+	private static function get_our_plugin_file() {
+		if (! function_exists('get_plugins')) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		$all = get_plugins();
+		foreach ($all as $file => $data) {
+			if (! empty($data['Name']) && $data['Name'] === 'WC Payment Link Rotator') {
+				return $file;
+			}
+			if (isset($data['Update URI']) && strpos($data['Update URI'], 'github.com/propafinder/wc-payment-rotator') !== false) {
+				return $file;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Собирает объект обновления для WP (id нужен для сопоставления с Update URI).
+	 *
+	 * @param string $new_version
+	 * @param array  $release
+	 * @param string $package
+	 * @param string $plugin_file
+	 * @return object
+	 */
+	private static function build_update_object($new_version, $release, $package, $plugin_file) {
+		return (object) [
+			'id'          => self::UPDATE_URI,
 			'slug'        => self::PLUGIN_SLUG,
+			'plugin'      => $plugin_file,
 			'version'     => $new_version,
 			'url'         => isset($release['html_url']) ? $release['html_url'] : 'https://github.com/propafinder/wc-payment-rotator',
 			'package'     => $package,

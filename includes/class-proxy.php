@@ -224,7 +224,7 @@ Copy your order number and paste it on the payment page.
 #<?= esc_html($order_number) ?>
 </div>
 
-<button class="copy-btn" id="copyBtn">
+<button class="copy-btn" id="copyBtn" type="button">
 COPY ORDER NUMBER
 </button>
 
@@ -244,19 +244,31 @@ If redirect does not start
 </div>
 
 <script>
-
-var order="<?= esc_js($order_number) ?>";
+// Текст для копирования (как на экране: # + номер). esc_js для безопасности.
+var orderCopyText=<?= wp_json_encode('#' . $order_number) ?>;
 
 function copyOrder(){
+var statusEl=document.getElementById("copyStatus");
+function showCopied(){ statusEl.style.display="block"; setTimeout(function(){ statusEl.style.display="none"; },2000); }
 
-navigator.clipboard.writeText(order);
+if(navigator.clipboard&&window.isSecureContext){
+navigator.clipboard.writeText(orderCopyText).then(showCopied).catch(fallbackCopy);
+}else{
+fallbackCopy();
+}
 
-document.getElementById("copyStatus").style.display="block";
-
-setTimeout(function(){
-document.getElementById("copyStatus").style.display="none";
-},2000);
-
+function fallbackCopy(){
+var ta=document.createElement("textarea");
+ta.value=orderCopyText;
+ta.style.position="fixed";ta.style.left="-9999px";ta.style.top="0";
+document.body.appendChild(ta);
+ta.focus();ta.select();
+try{
+var ok=document.execCommand("copy");
+if(ok)showCopied();
+}catch(e){}
+document.body.removeChild(ta);
+}
 }
 
 document.getElementById("copyBtn").onclick=copyOrder;

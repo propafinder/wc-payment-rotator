@@ -2,14 +2,14 @@
 /**
  * Plugin Name: Payment Link Rotator by Degrees
  * Description: Ротация внешних платёжных ссылок с прокладкой для скрытия реферера
- * Version: 1.1.3
+ * Version: 1.1.4
  * Text Domain: wc-plr
  */
 defined('ABSPATH') || exit;
 
 define('WC_PLR_PATH', plugin_dir_path(__FILE__));
 define('WC_PLR_URL',  plugin_dir_url(__FILE__));
-define('WC_PLR_VERSION', '1.1.3');
+define('WC_PLR_VERSION', '1.1.4');
 
 /**
  * Репозиторий для автообновления из GitHub (релизы).

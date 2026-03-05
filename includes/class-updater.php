@@ -153,7 +153,7 @@ class WC_PLR_Updater {
      */
     private function fetch_latest_release(): ?array {
         if (self::$release_cache !== null) {
-            return self::$release_cache;
+            return is_array(self::$release_cache) ? self::$release_cache : null;
         }
 
         $url = 'https://api.github.com/repos/' . $this->repo . '/releases/latest';

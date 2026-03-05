@@ -36,7 +36,44 @@ class WC_PLR_Updater {
         $this->token            = $token;
 
         add_filter('pre_set_site_transient_update_plugins', [$this, 'inject_update']);
+        // Подмешиваем обновление и при чтении транзиента (если он был закэширован без нашего плагина)
+        add_filter('pre_site_transient_update_plugins', [$this, 'inject_update_on_read'], 10, 1);
         add_filter('plugins_api', [$this, 'plugin_info'], 20, 3);
+    }
+
+    /**
+     * При чтении транзиента добавляем наше обновление, если его ещё нет в кэше.
+     */
+    public function inject_update_on_read($value) {
+        if (!is_object($value) || !isset($value->response)) {
+            return $value;
+        }
+        if (isset($value->response[$this->plugin_basename])) {
+            return $value;
+        }
+        $release = $this->fetch_latest_release();
+        if (!$release || !$this->is_newer($release['version'])) {
+            return $value;
+        }
+        $package = $this->get_package_url($release);
+        if (!$package) {
+            return $value;
+        }
+        $value->response[$this->plugin_basename] = (object) [
+            'id'            => 'wc-plr-github',
+            'slug'          => 'wc-payment-rotator',
+            'plugin'        => $this->plugin_basename,
+            'new_version'   => $release['version'],
+            'url'           => 'https://github.com/' . $this->repo,
+            'package'       => $package,
+            'icons'         => [],
+            'banners'       => [],
+            'banners_rtl'   => [],
+            'tested'        => '',
+            'requires_php'  => '',
+            'compatibility' => new stdClass(),
+        ];
+        return $value;
     }
 
     /**

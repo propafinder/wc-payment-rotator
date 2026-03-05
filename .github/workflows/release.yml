@@ -1,0 +1,39 @@
+# При пуше тега v* собирает zip плагина и создаёт GitHub Release с этим zip.
+# Использование: git tag v1.1.2 && git push origin v1.1.2
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create plugin zip
+        run: |
+          ZIP_NAME="wc-payment-rotator-${{ steps.version.outputs.VERSION }}.zip"
+          # В корне архива должна быть папка wc-payment-rotator/ (для корректной установки в WP)
+          mkdir -p build/wc-payment-rotator
+          rsync -a --exclude='.git' --exclude='.github' --exclude='.gitignore' --exclude='build' \
+            ./ build/wc-payment-rotator/
+          cd build && zip -r "../${ZIP_NAME}" wc-payment-rotator && cd ..
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
+
+      - name: Create Release and upload zip
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

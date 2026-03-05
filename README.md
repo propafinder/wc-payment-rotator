@@ -1,6 +1,6 @@
 # Payment Link Rotator
 
-WooCommerce payment gateway that sends customers to **external payment links** (e.g. **Stripe Payment Links**). Rotates between multiple links, prefills amount and email, and uses a proxy page to hide the referrer.
+**WordPress plugin** — WooCommerce payment gateway that sends customers to **external payment links** (e.g. **Stripe Payment Links**). Rotates between multiple links, prefills amount and email, and uses a proxy page to hide the referrer.
 
 ## Features
 

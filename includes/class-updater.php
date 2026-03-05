@@ -103,7 +103,7 @@ class WC_PLR_Updater {
 			'banners'     => [],
 			'banners_rtl' => [],
 			'requires'    => '5.6',
-			'tested'      => '6.4',
+			'tested'      => '6.7',
 			'requires_php'=> '7.4',
 		];
 	}
@@ -133,20 +133,21 @@ class WC_PLR_Updater {
 		$version = self::normalize_version($release['tag_name']);
 		$package = self::get_release_package_url($release);
 
+		$repo_url = 'https://github.com/propafinder/wc-payment-rotator';
 		$info = (object) [
 			'name'          => 'WC Payment Link Rotator',
 			'slug'          => self::PLUGIN_SLUG,
 			'version'       => $version,
-			'author'        => '<a href="https://github.com/propafinder">propafinder</a>',
-			'homepage'      => 'https://github.com/propafinder/wc-payment-rotator',
+			'author'        => 'by <a href="' . esc_url($repo_url) . '">Degrees Team</a>',
+			'homepage'      => $repo_url,
 			'download_link' => $package,
 			'last_updated'  => isset($release['published_at']) ? $release['published_at'] : '',
 			'sections'      => [
-				'description' => 'Ротация внешних платёжных ссылок с прокладкой для скрытия реферера. Обновление из GitHub.',
+				'description' => 'Rotation of external payment links with a proxy page to hide the referrer. Updates from GitHub.',
 				'changelog'   => isset($release['body']) ? $release['body'] : '',
 			],
 			'requires'      => '5.6',
-			'tested'        => '6.4',
+			'tested'        => '6.7',
 			'requires_php'  => '7.4',
 		];
 
